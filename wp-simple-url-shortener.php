@@ -34,7 +34,6 @@ along with {Plugin Name}. If not, see {License URI}.
  * 
  * @see https://developer.wordpress.org/plugins/settings/settings-api/
  */
-
 function wpsus_settings_page() {
 	add_settings_section('section', "Enter Key Details", null, 'wpsus');
 	add_settings_field('wpsus-input-field', 'API Key', 'wpsus_input_field_display', 'wpsus', 'section');
@@ -78,12 +77,12 @@ add_action('admin_menu', 'wpsus_menu_item');
  * @see https://www.sitepoint.com/the-wordpress-http-api/
  * @return string $shortlink Short goo.gl URL
  */
-
 function wpsus_meta_box_markup($object) {
 
 	// Retrieve the long URL of the post using the get_permalink() function
 	$key = get_permalink($object->ID);
 
+	// Check if API Key has been added to the settings page / stored in options table
 	if(get_option('wpsus-input-field', '') != '') {
 
 		// Check if we already have a short URL of this long URL in the database as a WordPress option. 
@@ -98,7 +97,7 @@ function wpsus_meta_box_markup($object) {
 
 		}
 
-		// If not, then we’re creating and retrieving Short URL using the HTTP API and storing it as a WordPress option
+		// If not, then we create and retrieve Short URL using the HTTP API and store it as a WordPress option
 
 		$url = 'https://www.googleapis.com/urlshortener/v1/url';
 
@@ -139,3 +138,72 @@ function wpsus_meta_box() {
 }
 
 add_action('add_meta_boxes', 'wpsus_meta_box');
+
+
+/**
+ * Display short URL in the front end
+ *
+ * @return string $content The post content appended with short URL section
+ */
+function wpsus_content_filter($content) {
+
+	// Check if post type is 'post', if so, stop executing function
+	if($GLOBALS['post']->post_type != 'post') {
+		return;
+	}
+
+	// Retrieve the long URL of the post using the get_permalink() function
+	$key = get_permalink($GLOBALS['post']->ID);
+
+	// Check if API Key has been added to the settings page / stored in options table
+	if(get_option('wpsus-input-field') != '') {
+
+		// Check if we already have a short URL of this long URL in the database as a WordPress option. 
+		// option_name (key) is the long URL, option_value (value) is the short URL
+
+		// If short URL exist,  we append it to the end of the content
+
+		if(get_option($key, '') != '') {
+
+			// Append short URL after post content
+			$content = $content . '<p><strong>Short URL for this post:</strong>  ' . get_option($key, '') . '</p>';
+			return $content;
+		}
+
+		// If not, then we create and retrievie Short URL using the HTTP API and store it as a WordPress option
+
+		$url = 'https://www.googleapis.com/urlshortener/v1/url';
+
+		$result = wp_remote_post(
+
+			add_query_arg(
+				'key',
+				get_option('wpsus-input-field'),
+				'https://www.googleapis.com/urlshortener/v1/url'
+			),
+			array(
+				'body' => json_encode(array('longUrl' => esc_url_raw($key))),
+				'headers' => array( 'Content-Type' => 'application/json' )
+			)
+
+		);
+
+		if(is_wp_error($result)) {
+			echo 'Error';
+			return;
+		}
+
+		$result = json_decode($result['body']);
+		$shortlink = $result->id;
+
+		update_option($key, $shortlink);
+
+		// Append short URL after post content
+		$content = $content . '<p><strong>Short URL for this post:</strong> ' . get_option($key, '') . '</p>';
+		return $content;
+
+	}
+
+}
+
+add_filter('the_content', 'wpsus_content_filter');
