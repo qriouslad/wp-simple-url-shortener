@@ -24,9 +24,8 @@ You should have received a copy of the GNU General Public License
 along with {Plugin Name}. If not, see {License URI}.
 */
 
-/* Google Short URL API key: AIzaSyAdlHJA0F86Xq8EkkdmTN5BZlRpIcpVCMw 
- *
- * API explorer: https://developers.google.com/apis-explorer/?hl=en_US#p/urlshortener/v1/
+/* API explorer: https://developers.google.com/apis-explorer/?hl=en_US#p/urlshortener/v1/
+ * To do: integrate with https://wordpress.org/plugins/googl/
  */
 
 /**
