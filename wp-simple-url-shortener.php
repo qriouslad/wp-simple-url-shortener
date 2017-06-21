@@ -29,7 +29,7 @@ along with {Plugin Name}. If not, see {License URI}.
  * API explorer: https://developers.google.com/apis-explorer/?hl=en_US#p/urlshortener/v1/
  */
 
-/*
+/**
  * Functions to create settings page to enter and save API key
  * 
  * @see https://developer.wordpress.org/plugins/settings/settings-api/
@@ -70,3 +70,72 @@ function wpsus_menu_item() {
 
 add_action('admin_menu', 'wpsus_menu_item');
 
+
+/**
+ * Displaying a shortnened URL in a meta box
+ *
+ * @see https://developer.wordpress.org/plugins/metadata/custom-meta-boxes/
+ * @see https://www.sitepoint.com/the-wordpress-http-api/
+ * @return string $shortlink Short goo.gl URL
+ */
+
+function wpsus_meta_box_markup($object) {
+
+	// Retrieve the long URL of the post using the get_permalink() function
+	$key = get_permalink($object->ID);
+
+	if(get_option('wpsus-input-field', '') != '') {
+
+		// Check if we already have a short URL of this long URL in the database as a WordPress option. 
+		// option_name (key) is the long URL, option_value (value) is the short URL
+
+		// If short URL exist,  we use that
+
+		if(get_option($key, '') != '') {
+
+			echo get_option($key, '');
+			return;
+
+		}
+
+		// If not, then we’re creating and retrieving Short URL using the HTTP API and storing it as a WordPress option
+
+		$url = 'https://www.googleapis.com/urlshortener/v1/url';
+
+		$result = wp_remote_post(
+
+			add_query_arg(
+				'key',
+				get_option('wpsus-input-field'),
+				'https://www.googleapis.com/urlshortener/v1/url'
+			),
+			array(
+				'body' => json_encode(array('longUrl' => esc_url_raw($key))),
+				'headers' => array( 'Content-Type' => 'application/json')
+			)
+
+		);
+
+		if(is_wp_error($result)) {
+			echo "Error";
+			return;
+		}
+
+		$result = json_decode($result['body']);
+		$shortlink = $result->id;
+
+		update_option($key, $shortlink);
+
+		echo $shortlink;
+
+	}
+
+}
+
+// Create a meta box using the add_meta_box function
+function wpsus_meta_box() {
+
+	add_meta_box('wpsus-meta-box', 'Short URL', 'wpsus_meta_box_markup', 'post', 'side', 'default', null);
+}
+
+add_action('add_meta_boxes', 'wpsus_meta_box');
